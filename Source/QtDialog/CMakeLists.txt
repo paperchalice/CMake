@@ -261,8 +261,13 @@ target_link_libraries(
   PUBLIC
     CMakeGUILib
   )
-
+if(CMake_ENABLE_DRIVER)
+  add_library(cmake-gui CMakeGUIExec.cxx)
+  target_link_libraries(cmake-driver cmake-gui)
+  set(driver_tools ${driver_tools} cmake-gui PARENT_SCOPE)
+else()
 add_executable(cmake-gui WIN32 MACOSX_BUNDLE CMakeGUIExec.cxx)
+endif()
 target_link_libraries(cmake-gui
   PRIVATE
     CMakeGUIMainLib
@@ -306,11 +311,20 @@ Checks: '-*,llvm-twine-local'
 ")
 
 if(APPLE)
+  if(CMake_ENABLE_DRIVER)
+    set(gui_exe cmake-driver)
+    set(cmake_tgt cmake-driver)
+  else()
+    set(gui_exe cmake-gui)
+    set(cmake_tgt cmake)
+  endif()
+
   file(STRINGS "${CMake_SOURCE_DIR}/Copyright.txt" copyright_line
     LIMIT_COUNT 1 REGEX "^Copyright 2000-20[0-9][0-9] Kitware")
 
-  set_target_properties(cmake-gui PROPERTIES
+  set_target_properties(${gui_exe} PROPERTIES
     OUTPUT_NAME CMake
+    MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Info.plist.in"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${CMAKE_BUNDLE_VERSION}"
     # TBD: MACOSX_BUNDLE_BUNDLE_VERSION "${CMAKE_BUNDLE_VERSION}"
@@ -322,11 +336,11 @@ if(APPLE)
   # to the "cmake" executable that refers to the application bundle.
   add_custom_command(TARGET cmake-gui POST_BUILD
     COMMAND ln -sf CMake.app/Contents/MacOS/CMake
-                   $<TARGET_FILE_DIR:cmake>/cmake-gui
+                   $<TARGET_FILE_DIR:${cmake_tgt}>/${gui_exe}
     )
 endif()
 
-install(TARGETS cmake-gui
+install(TARGETS ${cmake_tgt}
   RUNTIME DESTINATION bin ${COMPONENT}
   BUNDLE DESTINATION "${CMAKE_BUNDLE_LOCATION}" ${COMPONENT})
 
@@ -350,10 +364,39 @@ if(UNIX AND NOT APPLE)
 endif()
 
 if(APPLE)
-  install(CODE "
-    execute_process(COMMAND ln -s \"../MacOS/CMake\" cmake-gui
-        WORKING_DIRECTORY \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/bin)
-  " ${COMPONENT})
+  install(CODE [[
+  execute_process(
+    COMMAND
+      mkdir bin
+    COMMAND
+      mkdir Resources
+    COMMAND
+      mv MacOS/CMake bin/cmake-driver
+    WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}
+  )
+  ]])
+  install(CODE [[
+  execute_process(
+    COMMAND
+      ln -sf ../bin/cmake-driver cmake-gui
+    WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/MacOS
+  )
+  ]])
+  foreach(driver_tool IN LISTS driver_tools)
+    install(CODE "
+      execute_process(
+        COMMAND
+          ln -sf cmake-driver ${driver_tool}
+        WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/bin
+      )
+    ")
+  endforeach()
+  install(CODE "execute_process(
+    COMMAND
+      cp ${CMAKE_CURRENT_SOURCE_DIR}/CMakeSetup.icns Resources/
+    WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}
+    )"
+  )
 endif()
 
 if(CMake_INSTALL_DEPENDENCIES AND (APPLE OR WIN32))

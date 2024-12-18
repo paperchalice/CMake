@@ -160,8 +160,15 @@ const cmDocumentationEntry cmDocumentationOptions[] = {
 };
 } // anonymous namespace
 
+#if CMake_ENABLE_DRIVER
+#  define MAIN ctest_main
+extern "C" int MAIN(int ac, char const* const* av);
+#else
+#  define MAIN main
+#endif
+
 // this is a test driver program for cmCTest.
-int main(int argc, char const* const* argv)
+int MAIN(int argc, char const* const* argv)
 {
   cmSystemTools::EnsureStdPipes();
 

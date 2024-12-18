@@ -60,7 +60,14 @@ void onsig(int /*unused*/)
 
 cmCursesForm* cmCursesForm::CurrentForm = nullptr;
 
-int main(int argc, char const* const* argv)
+#if CMake_ENABLE_DRIVER
+#  define MAIN ccmake_main
+extern "C" int MAIN(int ac, char const* const* av);
+#else
+#  define MAIN main
+#endif
+
+int MAIN(int argc, char const* const* argv)
 {
   cmSystemTools::EnsureStdPipes();
   cmsys::Encoding::CommandLineArguments encoding_args =

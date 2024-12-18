@@ -228,8 +228,17 @@ static int process(cm::string_view srcfilename, const std::string& dfile,
   return exit_code;
 }
 
-int main()
+#if CMake_ENABLE_DRIVER
+#  define MAIN cmcldeps_main
+extern "C" int MAIN(int ac, char const* const* av);
+#else
+#  define MAIN main
+#endif
+
+int MAIN(int ac, char const* const* av)
 {
+  (void)ac;
+  (void)av;
 
   // Use the Win32 API instead of argc/argv so we can avoid interpreting the
   // rest of command line after the .d and .obj. Custom parsing seemed

@@ -1,7 +1,7 @@
 # Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
 # file Copyright.txt or https://cmake.org/licensing for details.
 
-add_executable(ccmake
+set(ccmake_srcs
   ccmake.cxx
   cmCursesBoolWidget.cxx
   cmCursesCacheEntryComposite.cxx
@@ -16,7 +16,19 @@ add_executable(ccmake
   cmCursesPathWidget.cxx
   cmCursesStringWidget.cxx
   cmCursesWidget.cxx
+)
+
+if (CMake_ENABLE_DRIVER)
+  add_library(ccmake ${ccmake_srcs})
+  set(ccmake_tgt cmake-driver)
+  set(driver_tools ${driver_tools} ccmake PARENT_SCOPE)
+  target_link_libraries(cmake-driver ccmake)
+else()
+  add_executable(ccmake
+    ${ccmake_srcs}
   )
+  set(ccmake_tgt ccmake)
+endif()
 target_include_directories(ccmake PRIVATE ${CURSES_INCLUDE_PATH})
 set(CMAKE_REQUIRED_INCLUDES ${CURSES_INCLUDE_PATH})
 target_link_libraries(ccmake CMakeLib)
@@ -59,5 +71,7 @@ if(CMake_JOB_POOL_LINK_BIN)
   set_property(TARGET ccmake PROPERTY JOB_POOL_LINK "link-bin")
 endif()
 
-CMake_OPTIONAL_COMPONENT(ccmake)
-install(TARGETS ccmake DESTINATION ${CMAKE_BIN_DIR} ${COMPONENT})
+if (NOT CMake_ENABLE_DRIVER)
+  CMake_OPTIONAL_COMPONENT(ccmake)
+  install(TARGETS ccmake DESTINATION ${CMAKE_BIN_DIR} ${COMPONENT})
+endif()

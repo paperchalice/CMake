@@ -1307,7 +1307,20 @@ endif()
 # Render config header file for CPackLib
 configure_file(CPack/cmCPackConfigure.h.in CPack/cmCPackConfigure.h)
 
+if (CMake_ENABLE_DRIVER)
+add_executable(cmake-driver
+  cmDriver.cxx
+  cmakemain.cxx cmcmd.cxx cmcmd.h
+  ctest.cxx
+  CPack/cpack.cxx
+)
+target_link_libraries(cmake-driver
+    CMakeLib CTestLib CPackLib ManifestLib
+)
 
+list(APPEND _tools cmake-driver)
+set(driver_tools cmake ctest cpack)
+else()
 # Build CMake executable
 add_executable(cmake cmakemain.cxx cmcmd.cxx cmcmd.h)
 target_link_libraries(cmake PRIVATE CMakeLib ManifestLib)
@@ -1322,6 +1335,7 @@ list(APPEND _tools ctest)
 add_executable(cpack CPack/cpack.cxx)
 target_link_libraries(cpack PRIVATE CPackLib ManifestLib)
 list(APPEND _tools cpack)
+endif()
 
 # Curses GUI
 if(BUILD_CursesDialog)
@@ -1370,11 +1384,27 @@ if(CMake_JOB_POOL_LINK_BIN)
   set_property(GLOBAL APPEND PROPERTY JOB_POOLS "link-bin=${CMake_JOB_POOL_LINK_BIN}")
 endif()
 
+# Generate driver defs
+if(CMake_ENABLE_DRIVER)
+  set(content [[
+#ifndef CMAKE_DRIVER_TOOL
+#define CMAKE_DRIVER_TOOL(name, entry)
+#endif
+]])
+foreach(driver_tool IN LISTS driver_tools)
+  string(REPLACE "-" "_" underscore_name ${driver_tool})
+  set(x_macro "CMAKE_DRIVER_TOOL(\"${driver_tool}\", ${underscore_name})\r\n")
+  string(APPEND content ${x_macro})
+endforeach()
+string(APPEND content "#undef CMAKE_DRIVER_TOOL")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cmDriverTools.def ${content})
+endif()
+
 # Install tools
 
 foreach(_tool IN LISTS _tools)
   CMake_OPTIONAL_COMPONENT(${_tool})
-  install(TARGETS ${_tool} DESTINATION ${CMAKE_BIN_DIR} ${COMPONENT})
+  # install(TARGETS ${_tool} DESTINATION ${CMAKE_BIN_DIR} ${COMPONENT})
 endforeach()
 
 install(FILES cmCPluginAPI.h DESTINATION ${CMAKE_DATA_DIR}/include)

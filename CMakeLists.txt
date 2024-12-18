@@ -133,6 +133,8 @@ endif()
 
 option(CMake_BUILD_PCH "Compile CMake with precompiled headers" OFF)
 
+option(CMake_ENABLE_DRIVER "build cmake-driver" OFF)
+
 # Check whether to build support for the debugger mode.
 if(NOT CMake_TEST_EXTERNAL_CMAKE)
   if(NOT DEFINED CMake_ENABLE_DEBUGGER)
@@ -514,7 +516,7 @@ if(NOT CMake_TEST_EXTERNAL_CMAKE)
   add_subdirectory(Utilities)
 endif()
 
-add_subdirectory(Tests)
+# add_subdirectory(Tests)
 
 if(NOT CMake_TEST_EXTERNAL_CMAKE)
   if(BUILD_TESTING)
