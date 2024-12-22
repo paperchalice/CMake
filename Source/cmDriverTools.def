@@ -1,0 +1,10 @@
+// Auto generated file. DO NOT EDIT IT MANUALLY!
+#ifndef CMAKE_TOOL
+#  define CMAKE_TOOL(NAME, ENTRY)
+#endif
+CMAKE_TOOL(ccmake, ccmake)
+CMAKE_TOOL(cmake-gui, cmake_gui)
+CMAKE_TOOL(cmake, cmake)
+CMAKE_TOOL(ctest, ctest)
+CMAKE_TOOL(cpack, cpack)
+#undef CMAKE_TOOL

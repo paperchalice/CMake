@@ -1037,6 +1037,13 @@ endif()
 # Temporary variable for tools targets
 set(_tools)
 
+if (CMake_ENABLE_DRIVER)
+  if (BUILD_QtDialog)
+    enable_language(OBJC)
+  endif()
+  add_executable(cmake-driver cmake-driver.cxx)
+endif()
+
 if(WIN32 AND NOT CYGWIN)
   set_source_files_properties(cmcldeps.cxx PROPERTIES COMPILE_DEFINITIONS _WIN32_WINNT=0x0501)
   add_executable(cmcldeps cmcldeps.cxx)
@@ -1378,6 +1385,22 @@ foreach(_tool IN LISTS _tools)
 endforeach()
 
 install(FILES cmCPluginAPI.h DESTINATION ${CMAKE_DATA_DIR}/include)
+
+# Generate driver definition
+if(CMake_ENABLE_DRIVER)
+  set(content [[
+// Auto generated file. DO NOT EDIT IT MANUALLY!
+#ifndef CMAKE_TOOL
+#  define CMAKE_TOOL(NAME, ENTRY)
+#endif
+]])
+  foreach(tool IN LISTS cmake_driver_tools)
+    string(REPLACE "-" "_" entry_name ${tool})
+    string(APPEND content "CMAKE_TOOL(${tool}, ${entry_name})\n")
+  endforeach()
+  string(APPEND content "#undef CMAKE_TOOL\n")
+  file(WRITE cmDriverTools.def ${content})
+endif()
 
 # Unset temporary variables
 unset(_tools)

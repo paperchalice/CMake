@@ -100,12 +100,17 @@ configure_file(Utilities/std/cmSTL.hxx.in Utilities/cmSTL.hxx @ONLY)
 # set the internal encoding of CMake to UTF-8
 set(KWSYS_ENCODING_DEFAULT_CODEPAGE CP_UTF8)
 
+option(CMake_ENABLE_DRIVER "Build generic cmake driver" OFF)
+
 # option to use COMPONENT with install command
 option(CMake_INSTALL_COMPONENTS "Using components when installing" OFF)
 mark_as_advanced(CMake_INSTALL_COMPONENTS)
 macro(CMake_OPTIONAL_COMPONENT NAME)
   if(CMake_INSTALL_COMPONENTS)
     set(COMPONENT COMPONENT ${NAME})
+  elseif(CMake_ENABLE_DRIVER)
+    list(APPEND cmake_driver_tools ${NAME})
+    set(cmake_driver_tools ${cmake_driver_tools} PARENT_SCOPE)
   else()
     set(COMPONENT)
   endif()
