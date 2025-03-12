@@ -263,9 +263,25 @@ target_link_libraries(
     CMakeGUILib
   )
 
-add_executable(cmake-gui WIN32 MACOSX_BUNDLE CMakeGUIExec.cxx)
-set_property(TARGET cmake-gui PROPERTY CMake_QT_MAJOR_VERSION "${CMake_QT_MAJOR_VERSION}")
-target_link_libraries(cmake-gui
+if(CMake_ENABLE_DRIVER)
+  add_executable(cmake-gui ALIAS cmake-driver)
+  target_sources(cmake-driver
+    PRIVATE CMakeGUIExec.cxx
+  )
+  target_compile_definitions(cmake-driver
+    PRIVATE CMake_HAS_GUI
+  )
+  set(cmake_gui_tgt cmake-driver)
+  set_target_properties(cmake-driver
+    PROPERTIES WIN32_EXECUTABLE True
+    MACOSX_BUNDLE True
+  )
+else()
+  add_executable(cmake-gui WIN32 MACOSX_BUNDLE CMakeGUIExec.cxx)
+  set(cmake_gui_tgt cmake-gui)
+endif()
+set_property(TARGET ${cmake_gui_tgt} PROPERTY CMake_QT_MAJOR_VERSION "${CMake_QT_MAJOR_VERSION}")
+target_link_libraries(${cmake_gui_tgt}
   PRIVATE
     CMakeGUIMainLib
     CMakeGUIQRCLib
@@ -290,7 +306,7 @@ endif()
 
 # cmake-gui has not been updated for `include-what-you-use`.
 # Block the tool until this is done.
-set_target_properties(CMakeGUILib CMakeGUIMainLib cmake-gui PROPERTIES
+set_target_properties(CMakeGUILib CMakeGUIMainLib ${cmake_gui_tgt} PROPERTIES
   CXX_INCLUDE_WHAT_YOU_USE ""
   )
 
@@ -308,7 +324,7 @@ Checks: '-*,llvm-twine-local'
 ")
 
 if(APPLE)
-  set_target_properties(cmake-gui PROPERTIES
+  set_target_properties(${cmake_gui_tgt} PROPERTIES
     OUTPUT_NAME CMake
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Info.plist.in"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${CMAKE_BUNDLE_VERSION}"
@@ -319,13 +335,15 @@ if(APPLE)
 
   # Create a symlink in the build tree to provide a "cmake-gui" next
   # to the "cmake" executable that refers to the application bundle.
-  add_custom_command(TARGET cmake-gui POST_BUILD
-    COMMAND ln -sf CMake.app/Contents/MacOS/CMake
-                   $<TARGET_FILE_DIR:cmake>/cmake-gui
-    )
+  if(NOT CMake_ENABLE_DRIVER)
+    add_custom_command(TARGET cmake-gui POST_BUILD
+      COMMAND ln -sf CMake.app/Contents/MacOS/CMake
+                    $<TARGET_FILE_DIR:cmake>/cmake-gui
+      )
+  endif()
 endif()
 
-install(TARGETS cmake-gui
+install(TARGETS ${cmake_gui_tgt}
   RUNTIME DESTINATION bin ${COMPONENT}
   BUNDLE DESTINATION "${CMAKE_BUNDLE_LOCATION}" ${COMPONENT})
 

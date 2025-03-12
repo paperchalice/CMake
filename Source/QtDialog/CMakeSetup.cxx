@@ -64,7 +64,14 @@ int CMakeGUIExec(CMakeSetupDialog* window);
 void SetupDefaultQSettings();
 void OpenReferenceManual(QString const& filename);
 
-int main(int argc, char** argv)
+#ifdef CMake_ENABLE_DRIVER
+#  define MAIN cmake_gui_main
+extern "C" int MAIN(int argc, char** argv);
+#else
+#  define MAIN main
+#endif
+
+int MAIN(int argc, char** argv)
 {
   cmSystemTools::EnsureStdPipes();
   cmsys::Encoding::CommandLineArguments encoding_args =

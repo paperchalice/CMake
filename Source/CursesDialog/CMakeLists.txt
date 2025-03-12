@@ -1,7 +1,16 @@
 # Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
 # file LICENSE.rst or https://cmake.org/licensing for details.
 
-add_executable(ccmake
+if(CMake_ENABLE_DRIVER)
+  add_executable(ccmake ALIAS cmake-driver)
+  set(ccmake_tgt cmake-driver)
+else()
+  add_executable(ccmake)
+  set(ccmake_tgt ccmake)
+endif()
+
+target_sources(${ccmake_tgt}
+  PRIVATE
   ccmake.cxx
   cmCursesBoolWidget.cxx
   cmCursesCacheEntryComposite.cxx
@@ -17,16 +26,17 @@ add_executable(ccmake
   cmCursesStringWidget.cxx
   cmCursesWidget.cxx
   )
-target_include_directories(ccmake PRIVATE ${CURSES_INCLUDE_PATH})
+target_include_directories(${ccmake_tgt} PRIVATE ${CURSES_INCLUDE_PATH})
 set(CMAKE_REQUIRED_INCLUDES ${CURSES_INCLUDE_PATH})
-target_link_libraries(ccmake CMakeLib)
+target_link_libraries(${ccmake_tgt} PRIVATE CMakeLib)
 if(CMAKE_USE_SYSTEM_FORM)
   find_path(CURSES_FORM_INCLUDE_DIR NAMES form.h HINTS ${CURSES_INCLUDE_PATH} ${CURSES_INCLUDE_PATH}/ncurses)
   if(CURSES_FORM_INCLUDE_DIR)
-    target_include_directories(ccmake PRIVATE ${CURSES_FORM_INCLUDE_DIR})
+    target_include_directories(${ccmake_tgt} PRIVATE ${CURSES_FORM_INCLUDE_DIR})
     list(APPEND CMAKE_REQUIRED_INCLUDES ${CURSES_FORM_INCLUDE_DIR})
   endif()
-  target_link_libraries(ccmake
+  target_link_libraries(${ccmake_tgt}
+    PRIVATE
     ${CURSES_FORM_LIBRARY}
     ${CURSES_LIBRARY}
   )
@@ -35,7 +45,7 @@ if(CMAKE_USE_SYSTEM_FORM)
     ${CURSES_LIBRARY}
   )
   if(CURSES_EXTRA_LIBRARY)
-    target_link_libraries(ccmake ${CURSES_EXTRA_LIBRARY})
+    target_link_libraries(${ccmake_tgt} PRIVATE ${CURSES_EXTRA_LIBRARY})
     list(APPEND CMAKE_REQUIRED_LIBRARIES ${CURSES_EXTRA_LIBRARY})
   endif()
 else()
@@ -59,5 +69,7 @@ if(CMake_JOB_POOL_LINK_BIN)
   set_property(TARGET ccmake PROPERTY JOB_POOL_LINK "link-bin")
 endif()
 
-CMake_OPTIONAL_COMPONENT(ccmake)
-install(TARGETS ccmake DESTINATION ${CMAKE_BIN_DIR} ${COMPONENT})
+if(NOT CMake_ENABLE_DRIVER)
+  CMake_OPTIONAL_COMPONENT(ccmake)
+  install(TARGETS ccmake DESTINATION ${CMAKE_BIN_DIR} ${COMPONENT})
+endif()
