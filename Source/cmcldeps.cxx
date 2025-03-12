@@ -228,7 +228,14 @@ static int process(cm::string_view srcfilename, std::string const& dfile,
   return exit_code;
 }
 
-int main()
+#ifdef CMake_ENABLE_DRIVER
+#  define MAIN cmcldeps_main
+extern "C" int MAIN(int, char const* const*);
+#else
+#  define MAIN main
+#endif
+
+int MAIN(int, char const* const*)
 {
 
   // Use the Win32 API instead of argc/argv so we can avoid interpreting the

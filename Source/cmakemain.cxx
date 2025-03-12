@@ -1137,7 +1137,14 @@ int do_open(int ac, char const* const* av)
 }
 } // namespace
 
-int main(int ac, char const* const* av)
+#ifdef CMake_ENABLE_DRIVER
+#  define MAIN cmake_main
+extern "C" int MAIN(int, char const* const*);
+#else
+#  define MAIN main
+#endif
+
+int MAIN(int ac, char const* const* av)
 {
   cmSystemTools::EnsureStdPipes();
 

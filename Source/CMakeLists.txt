@@ -1025,10 +1025,20 @@ endif()
 # Temporary variable for tools targets
 set(_tools)
 
+if(CMake_ENABLE_DRIVER)
+  add_executable(cmake-driver driver.cxx)
+endif()
+
 if(WIN32 AND NOT CYGWIN)
   set_source_files_properties(cmcldeps.cxx PROPERTIES COMPILE_DEFINITIONS _WIN32_WINNT=0x0501)
-  add_executable(cmcldeps cmcldeps.cxx)
-  target_link_libraries(cmcldeps PRIVATE CMakeLib ManifestLib)
+  if(CMake_ENABLE_DRIVER)
+    add_executable(cmcldeps ALIAS cmake-driver)
+    target_sources(cmake-driver PRIVATE cmcldeps.cxx)
+    target_link_libraries(cmake-driver PRIVATE CMakeLib ManifestLib)
+  else()
+    add_executable(cmcldeps cmcldeps.cxx)
+    target_link_libraries(cmcldeps PRIVATE CMakeLib ManifestLib)
+  endif()
   list(APPEND _tools cmcldeps)
 endif()
 
@@ -1300,18 +1310,41 @@ configure_file(CPack/cmCPackConfigure.h.in CPack/cmCPackConfigure.h)
 
 
 # Build CMake executable
-add_executable(cmake cmakemain.cxx cmcmd.cxx cmcmd.h)
-target_link_libraries(cmake PRIVATE CMakeLib ManifestLib)
+if(CMake_ENABLE_DRIVER)
+  add_executable(cmake ALIAS cmake-driver)
+  target_sources(cmake-driver
+    PRIVATE cmakemain.cxx cmcmd.cxx cmcmd.h
+  )
+  set(cmake_tgt cmake-driver)
+else()
+  add_executable(cmake cmakemain.cxx cmcmd.cxx cmcmd.h)
+  set(cmake_tgt cmake)
+endif()
+target_link_libraries(${cmake_tgt} PRIVATE CMakeLib ManifestLib)
 list(APPEND _tools cmake)
 
 # Build CTest executable
-add_executable(ctest ctest.cxx)
-target_link_libraries(ctest PRIVATE CTestLib ManifestLib)
+if(CMake_ENABLE_DRIVER)
+  add_executable(ctest ALIAS cmake-driver)
+  target_sources(cmake-driver PRIVATE ctest.cxx)
+  set(ctest_tgt cmake-driver)
+else()
+  add_executable(ctest ctest.cxx)
+  set(ctest_tgt ctest)
+endif()
+target_link_libraries(${ctest_tgt} PRIVATE CTestLib ManifestLib)
 list(APPEND _tools ctest)
 
 # Build CPack executable
-add_executable(cpack CPack/cpack.cxx)
-target_link_libraries(cpack PRIVATE CPackLib ManifestLib)
+if(CMake_ENABLE_DRIVER)
+  add_executable(cpack ALIAS cmake-driver)
+  target_sources(cmake-driver PRIVATE CPack/cpack.cxx)
+  set(cpack_tgt cmake-driver)
+else()
+  add_executable(cpack CPack/cpack.cxx)
+  set(cpack_tgt cpack)
+endif()
+target_link_libraries(${cpack_tgt} PRIVATE CPackLib ManifestLib)
 list(APPEND _tools cpack)
 
 # Curses GUI
@@ -1323,6 +1356,31 @@ endif()
 option(BUILD_QtDialog "Build Qt dialog for CMake" FALSE)
 if(BUILD_QtDialog)
   add_subdirectory(QtDialog)
+endif()
+
+if(CMake_ENABLE_DRIVER)
+  set(all_tools ${_tools})
+  if(BUILD_CursesDialog)
+    list(APPEND all_tools "ccmake")
+  endif()
+  if(BUILD_QtDialog)
+    list(APPEND all_tools "cmake-gui")
+  endif()
+  set(content [[
+#ifndef CMAKE_TOOL
+#define CMAKE_TOOL(...)
+#endif
+]])
+  list(SORT all_tools)
+  foreach(t ${all_tools})
+    string(REPLACE "-" "_" entry_name ${t})
+    string(APPEND content "CMAKE_TOOL(\"${t}\", ${entry_name}_main)\n")
+  endforeach()
+  string(APPEND content "#undef CMAKE_TOOL\n")
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/cmake-tools.def ${content})
+  unset(all_tools)
+  unset(t)
+  unset(content)
 endif()
 
 include(${CMAKE_CURRENT_BINARY_DIR}/LocalUserOptions.cmake OPTIONAL)
@@ -1351,9 +1409,13 @@ if(WIN32)
   # MinGW's windres tool with spaces in the path to the include directories.
   add_library(CMakeVersion OBJECT "${CMAKE_CURRENT_BINARY_DIR}/CMakeVersion.rc")
   set_property(TARGET CMakeVersion PROPERTY INCLUDE_DIRECTORIES "")
-  foreach(_tool IN LISTS _tools)
-    target_link_libraries(${_tool} PRIVATE CMakeVersion)
-  endforeach()
+  if(CMake_ENABLE_DRIVER)
+    target_link_libraries(cmake-driver PRIVATE CMakeVersion)
+  else()
+    foreach(_tool IN LISTS _tools)
+      target_link_libraries(${_tool} PRIVATE CMakeVersion)
+    endforeach()
+  endif()
 endif()
 
 if(CMake_JOB_POOL_LINK_BIN)
@@ -1363,10 +1425,29 @@ endif()
 
 # Install tools
 
-foreach(_tool IN LISTS _tools)
-  CMake_OPTIONAL_COMPONENT(${_tool})
-  install(TARGETS ${_tool} DESTINATION ${CMAKE_BIN_DIR} ${COMPONENT})
-endforeach()
+if(CMake_ENABLE_DRIVER)
+  CMake_OPTIONAL_COMPONENT(cmake-driver)
+  install(TARGETS cmake-driver DESTINATION ${CMAKE_BIN_DIR} ${COMPONENT})
+  if (APPLE AND BUILD_QtDialog)
+    set(driver_dir "\"../MacOS/CMake\"")
+    add_custom_command(TARGET cmake-driver POST_BUILD
+    COMMAND ln -sf CMake.app/Contents/MacOS/CMake
+      ${CMake_BIN_DIR}/cmake
+    )
+  else()
+    set(driver_dir "cmake-driver")
+  endif()
+  foreach(tool IN LISTS _tools)
+    install(CODE "execute_process(COMMAND \${CMAKE_COMMAND} -E create_symlink ${driver_dir} ${tool}"
+    ${COMPONENT})
+  endforeach()
+  
+else()
+  foreach(_tool IN LISTS _tools)
+    CMake_OPTIONAL_COMPONENT(${_tool})
+    install(TARGETS ${_tool} DESTINATION ${CMAKE_BIN_DIR} ${COMPONENT})
+  endforeach()
+endif()
 
 # Unset temporary variables
 unset(_tools)

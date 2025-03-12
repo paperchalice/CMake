@@ -86,8 +86,15 @@ std::vector<cmDocumentationEntry> makeGeneratorDocs(
 
 } // namespace
 
+#ifdef CMake_ENABLE_DRIVER
+#  define MAIN cpack_main
+extern "C" int MAIN(int, char const* const*);
+#else
+#  define MAIN main
+#endif
+
 // this is CPack.
-int main(int argc, char const* const* argv)
+int MAIN(int argc, char const* const* argv)
 {
   cmSystemTools::EnsureStdPipes();
 
